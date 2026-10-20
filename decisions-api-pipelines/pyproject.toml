@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decisions-api-pipelines"
+version = "0.1.0"
+description = "Production-ready OpenAI Decisions API pipelines in Python"
+readme = "SKILL.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.50.0",
+    "pydantic>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "scikit-learn>=1.2.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-mock>=3.11.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["scripts/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "live: marks tests that make live API calls (opt-in, cost-capped)",
+]
+addopts = "-m 'not live'"

@@ -1,0 +1,125 @@
+Metadata-Version: 2.4
+Name: decisions-api-pipelines
+Version: 0.1.0
+Summary: Production-ready OpenAI Decisions API pipelines in Python
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: openai>=1.50.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: scikit-learn>=1.2.0
+Provides-Extra: test
+Requires-Dist: pytest>=7.4.0; extra == "test"
+Requires-Dist: pytest-mock>=3.11.0; extra == "test"
+
+---
+name: decisions-api-pipelines
+description: Takes a stakeholder's problem and designs, specifies, calibrates, and delivers production-ready OpenAI Decisions API (/v1/decisions) pipelines in Python, with no developer in between. Use this skill whenever building or operating Decisions API pipelines, bounding evaluations, converting fuzzy questions into observable predicates/choices/scores, setting confidence cutoffs, handling refusals and errors, or auditing classification systems.
+---
+
+# Decisions API Pipelines
+
+## Purpose
+This skill enables an autonomous AI engineer to take a stakeholder's business problem and deliver production-ready, fully tested OpenAI Decisions API (`POST /v1/decisions`) pipelines in Python. It enforces strict boundary separation: probabilistic perception belongs to the model; all deterministic policies, arithmetic, chaining, extraction, and side effects belong to versioned application code.
+
+---
+
+## 8 Imperative Runtime Behaviors
+
+1. **Fit Check First**: The Decisions API makes glance-level System 1 judgments over evidence. Arithmetic, policy, chaining, extraction, and deep multi-step reasoning belong to code or other tools. Say so immediately when any part of a task is a poor fit, and propose an explicit split.
+2. **Intake Thoroughly**: Before designing, establish and restate:
+   - *Inputs*: shape, size, modality (text, image, PDF workaround), trust level, sensitive data.
+   - *Outputs*: consumers of the decision and exact downstream actions triggered.
+   - *Constraints*: latency (p50/p99), cost per item × volume, rate limits, data privacy.
+   - *Error Costs*: explicit business costs ($ or severity) of False Positives ($C_{FP}$), False Negatives ($C_{FN}$), and Human Review ($C_R$).
+   - *Labeled Data*: existing labeled samples for dev, test, and certification.
+3. **Ask Eagerly, in Batches**: Ask whenever the answer would alter a definition, threshold, cost, risk, or anything irreversible. Decide alone only on mechanical, cheaply reversible matters. Always present questions in batches with your recommended default so a one-word confirmation works.
+4. **Self-Contained Messages**: Every question and report must quote the exact question text, input sample, threshold, or numbers it concerns. Never write "as above" or "the earlier one".
+5. **State Assumptions Aloud**: Maintain a numbered assumption ledger at every stage, with every entry marked *assumed*, *confirmed by stakeholder*, or *verified by test*.
+6. **Plan Before, Report After**: At each checkpoint (Framing & Intake, Architecture Design, First Draft, Test Selection, Test Results, Production Handoff):
+   - *Plan*: What, why, alternatives considered, assumptions, open questions, expected cost/time.
+   - *Report (1 page)*: Outcome first, empirical evidence (numbers), changes from plan, autonomous decisions (what, why, how to reverse), deferred decisions (resolving condition, safe default), next step.
+7. **Draft First, Then Test by ROI**: After the first draft, score candidate tests using:
+   $$\text{Score} = \frac{P(\text{defect exists}) \times \text{Cost}(\text{defect ships})}{\text{Cost to run (money, time, stakeholder effort)}}$$
+   Present the scored ROI table, obtain stakeholder sign-off, run the top tests offline against a fake client, and state live API costs before any opt-in live test.
+8. **Frame Trade-offs as Expected Cost**: Compute expected cost using stakeholder error costs:
+   $$\mathbb{E}[\text{Cost}] = P(\text{act}) \cdot C(\text{action}) + P(\text{review}) \cdot C_R + P(\text{error}) \cdot C(\text{error}) + \text{Cost}_{\text{API}}$$
+
+---
+
+## Engineering Standards
+
+- **Isolated Packages**: Each pipeline is an autonomous, self-contained Python package: versioned question registry, input builder with escaping, defensive response parser, policy code, config, and unit tests. Never import between pipelines. Inject the API client as a dependency; never use a global client.
+- **Model vs. Code Split**:
+  - *Model*: Evaluates observable criteria over supplied evidence.
+  - *Code*: Applies thresholds, SLA rules, customer tier logic, strike counts, dates, arithmetic, routing, and execution.
+- **Reliability & Resilience**:
+  - Pass timeouts and an overall deadline down any chain. Take safe provisional actions upon deadline expiry.
+  - Retry only whole requests, only on retryable transport/rate-limit errors with exponential backoff and jitter. Never retry refusals identically.
+  - Maintain a circuit breaker on high failure rates.
+  - Enforce explicit per-question refusal policies (`block`, `hold_and_review`, `human_queue`, `missing`).
+  - Generate an immutable `DecisionRecord` for every evaluation (answers, question versions, evidence hash, schema version, timestamp).
+- **Testing Standards**:
+  - Offline by default: all unit tests run against a injected fake client (`FakeDecisionsClient`).
+  - Live tests are strictly opt-in, marked with `@pytest.mark.live`, cost-capped, and run with canaries.
+  - Strictly typed Python (PEP 484/526), pinned dependencies, tested with `pytest`.
+
+---
+
+## End-to-End Workflow
+
+```
+[1. Fit Check & Intake] ──> [2. Deconstruct to Observables] ──> [3. Question Registry & Input Builder]
+                                                                                │
+[6. Handoff & Monitor]  <── [5. Threshold Calibration]     <── [4. Scaffold Isolated Package & Test]
+```
+
+1. **Fit Check & Intake**: Validate that the task requires bounded evaluation. Gather inputs, volume, error costs ($C_{FP}, C_{FN}, C_R$), and latency SLAs.
+2. **Deconstruction**: Rewrite fuzzy business questions into observable, System 1 criteria. Separate policy from perception. Select primitives (`predicate`, `choice`, `score`).
+3. **Scaffold Package**: Copy `scripts/pipeline_template/` to create a dedicated package. Define versioned question schemas and sanitized input formatting.
+4. **Offline Testing**: Build tests with `FakeDecisionsClient`. Validate contract adherence, boundary conditions, refusal handling, and decision record logging.
+5. **Calibration**: Sweep cutoffs on labeled dev data to minimize expected cost under human review constraints. Certify error bounds on test sets using binomial confidence intervals.
+6. **Production & Drift**: Ship with frozen `ThresholdSpec` that auto-expires on fingerprint shifts. Set up daily probe replays and weekly confusion matrix audits.
+
+---
+
+## Reference Index
+
+Consult these single-topic guides in `references/` during execution:
+
+| Reference File | When to Read |
+|---|---|
+| [`references/fit-check.md`](references/fit-check.md) | Assessing whether Decisions API fits the problem, comparing against Structured Outputs, and splitting tasks between model and code. |
+| [`references/api-contract.md`](references/api-contract.md) | Building requests, parsing responses, understanding wire limits, model IDs, usage tokens, and defensive validation. |
+| [`references/primitives.md`](references/primitives.md) | Designing `predicate`, `choice`, and `score` questions; phrasing rules; expected value and distribution math. |
+| [`references/input-engineering.md`](references/input-engineering.md) | Formatting evidence, delimiters, section headers, chunking strategies, and preventing policy pollution. |
+| [`references/multimodal.md`](references/multimodal.md) | Handling images (base64 data URLs), patch calculations, detail levels, PDF extraction/rasterization, and visual text. |
+| [`references/instruction-design.md`](references/instruction-design.md) | Writing observable instructions, managing proof depth (Depth 0–1 only), preventing criteria bleed, and DRY definitions. |
+| [`references/batching-and-independence.md`](references/batching-and-independence.md) | Multi-question requests, input amortization math, testing for inter-question interference, and registry setup. |
+| [`references/chaining-and-cascades.md`](references/chaining-and-cascades.md) | Multi-round application pipelines, cascade vs. batch economics, speculative branching, and asynchronous decoupling. |
+| [`references/profiles-and-policies.md`](references/profiles-and-policies.md) | Combining multi-question profile outputs into deterministic business policies; handling missing/refused fields. |
+| [`references/calibration-and-thresholds.md`](references/calibration-and-thresholds.md) | AUROC vs. ECE, cost-optimal 3-zone threshold sweeps, base rate precision adjustments, and binomial sample certification. |
+| [`references/reliability-and-errors.md`](references/reliability-and-errors.md) | Refusal handling policies, gateway error recovery, retries with jitter, deadlines, circuit breakers, and decision records. |
+| [`references/monitoring-and-drift.md`](references/monitoring-and-drift.md) | Dev/test/hard splits, gate rules, paired bootstrap testing, probe replay sets, PSI distribution drift, and human audits. |
+| [`references/security.md`](references/security.md) | Prompt injection defense, delimiter escaping, multi-turn split-payload attacks, payload detection, and PII hashing. |
+| [`references/cost-latency-math.md`](references/cost-latency-math.md) | Token formulas, pricing calculations, expected cost equations, latency budgets, and optimization ceilings. |
+| [`references/testing-playbook.md`](references/testing-playbook.md) | ROI test prioritization framework, offline fake client testing, live opt-in tests, and canary probes. |
+| [`references/pitfalls.md`](references/pitfalls.md) | Comprehensive 15-category catalog of 144+ failure modes across all modules, with causes, detection methods, and fixes. |
+| [`references/worked-examples.md`](references/worked-examples.md) | Full worked examples from all domains: support triage, review screening, return claims, contract review, and insurance claims. |
+| [`references/open-experiments.md`](references/open-experiments.md) | Protocols and runnable scripts for open experiments (caching, interference, paraphrase sensitivity, cost regression, etc.). |
+| [`references/communication-templates.md`](references/communication-templates.md) | Standard templates for stakeholder intake, batch question proposals, assumption ledgers, checkpoint plans, and reports. |
+| [`references/knowledge-gaps.md`](references/knowledge-gaps.md) | Catalog of unverified vendor details, gateway discrepancies, volatile parameters, and open clarification queries. |
+
+---
+
+## Scripts & Runtime Scaffold
+
+The `scripts/` directory provides production-tested scaffolding:
+
+- `scripts/pipeline_template/`: Blueprint for an isolated pipeline package (registry, input builder, defensive parser, policy code, config, and unit tests).
+- `scripts/runtime/`: Reusable runtime components (client protocol, `FakeDecisionsClient`, resilience, circuit breaker, decision records, and refusal policies).
+- `scripts/snippets/`: Unit-tested implementations of all algorithms and course snippets.
+- `scripts/experiments/`: Standalone runnable scripts for all empirical experiments.
+- `scripts/verify_volatile_facts.py`: Live verification script for checking model behavior, token limits, and pricing.
+- `scripts/tests/`: Comprehensive test suite verifying all code offline by default.
